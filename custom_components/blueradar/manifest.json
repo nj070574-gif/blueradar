@@ -1,6 +1,7 @@
 {
   "domain": "blueradar",
   "name": "BlueRadar",
+  "after_dependencies": ["http"],
   "codeowners": ["@nj070574-gif"],
   "config_flow": true,
   "dependencies": ["bluetooth", "bluetooth_adapters"],
