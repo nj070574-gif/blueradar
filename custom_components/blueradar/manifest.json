@@ -1,0 +1,12 @@
+{
+  "domain": "blueradar",
+  "name": "BlueRadar",
+  "version": "1.2.0",
+  "codeowners": ["@nj070574-gif"],
+  "config_flow": true,
+  "dependencies": ["bluetooth", "bluetooth_adapters"],
+  "documentation": "https://github.com/nj070574-gif/blueradar",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/nj070574-gif/blueradar/issues",
+  "requirements": []
+}

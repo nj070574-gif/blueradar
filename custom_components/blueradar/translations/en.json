@@ -1,0 +1,27 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "BlueRadar",
+        "description": "Set up BlueRadar — rich Bluetooth Low Energy device management for Home Assistant."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "BlueRadar is already configured."
+    }
+  },
+  "services": {
+    "track": {
+      "name": "Track BLE device",
+      "description": "Add a BLE MAC address to BlueRadar's tracked devices."
+    },
+    "untrack": {
+      "name": "Untrack BLE device",
+      "description": "Remove a BLE MAC address from BlueRadar's tracked devices."
+    },
+    "refresh": {
+      "name": "Refresh BLE list",
+      "description": "Force a re-poll of the bluetooth integration's device list."
+    }
+  }
+}
