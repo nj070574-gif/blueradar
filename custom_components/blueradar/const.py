@@ -16,10 +16,11 @@ functionality to work. The read-only views (device list, manufacturers,
 heat map) work without it.
 """
 import logging
+import re
 
 DOMAIN = "blueradar"
 NAME = "BlueRadar"
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 LOGGER = logging.getLogger(__package__)
 
 # The location-engine integration BlueRadar wraps. Track/untrack operations
@@ -95,3 +96,18 @@ def addr_type(mac):
         0x80: "RND-NON-RESOLVABLE",
         0xC0: "RND-STATIC",
     }.get(bits, "?")
+
+
+_MAC_RE = re.compile(r"^[0-9A-F]{2}(:[0-9A-F]{2}){5}$")
+
+
+def valid_mac(mac):
+    """Return the normalised upper-case MAC if well-formed, else None.
+
+    Guards against arbitrary strings being written into the location
+    backend's configured-devices list (track/untrack/bulk).
+    """
+    if not isinstance(mac, str):
+        return None
+    m = mac.strip().upper()
+    return m if _MAC_RE.match(m) else None

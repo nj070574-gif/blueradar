@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-10-03
+
+### Security
+- Write endpoints now require an **admin** Home Assistant user, not just any
+  authenticated token. `track`, `untrack`, `track_bulk` and `track_by_filter`
+  (REST) and the `blueradar/track` / `blueradar/untrack` WebSocket commands
+  mutate the location backend's config, so they are now restricted to admin
+  tokens. Read endpoints and the device-list card are unchanged (auth-only);
+  the OpenAPI spec stays unauthenticated for self-discovery.
+- MAC addresses are validated (`^[0-9A-F]{2}(:..){5}$`, case-insensitive) and
+  normalised before anything is written to the backend's `configured_devices`
+  list, so a malformed value can no longer pollute the backend config. Bulk
+  track reports any skipped invalid entries in `skipped_invalid`.
+
+### Fixed
+- `track_by_filter` returned HTTP 500 when `min_rssi` (or `limit`) in the JSON
+  body was non-numeric; both are now validated and rejected with a clear 400.
+- `track_bulk` no longer errors on a non-string entry in the `macs` array —
+  invalid entries are validated and skipped.
+
 ## [1.2.0] - 2026-04-26
 
 ### Added

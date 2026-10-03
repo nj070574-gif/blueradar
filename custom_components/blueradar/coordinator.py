@@ -20,6 +20,7 @@ from .const import (
     addr_type,
     estimate_distance,
     manuf_name,
+    valid_mac,
 )
 
 
@@ -102,7 +103,9 @@ class BlueRadarCoordinator(DataUpdateCoordinator):
         return list(ent.options.get(_BACKEND_DEVICES_KEY, []) or [])
 
     async def track_device(self, mac: str, name: str | None = None) -> dict[str, Any]:
-        mac = mac.upper().strip()
+        mac = valid_mac(mac)
+        if mac is None:
+            return {"ok": False, "error": "invalid_mac"}
         ent = self._get_backend_entry()
         if ent is None:
             LOGGER.error("Location backend not installed/configured")
@@ -129,14 +132,19 @@ class BlueRadarCoordinator(DataUpdateCoordinator):
         existing = list(ent.options.get(_BACKEND_DEVICES_KEY, []) or [])
         existing_upper = {m.upper() for m in existing}
         added = []
+        skipped_invalid = []
         for m in macs:
-            mu = m.upper().strip()
-            if mu and mu not in existing_upper:
+            mu = valid_mac(m)
+            if mu is None:
+                skipped_invalid.append(m)
+                continue
+            if mu not in existing_upper:
                 existing.append(mu)
                 existing_upper.add(mu)
                 added.append(mu)
         if not added:
-            return {"ok": True, "added": [], "count": 0, "tracked_count": len(existing)}
+            return {"ok": True, "added": [], "count": 0,
+                    "tracked_count": len(existing), "skipped_invalid": skipped_invalid}
 
         new_options = dict(ent.options)
         new_options[_BACKEND_DEVICES_KEY] = existing
@@ -145,10 +153,13 @@ class BlueRadarCoordinator(DataUpdateCoordinator):
 
         await self.async_request_refresh()
         async_dispatcher_send(self.hass, SIGNAL_DEVICES_UPDATED)
-        return {"ok": True, "added": added, "count": len(added), "tracked_count": len(existing)}
+        return {"ok": True, "added": added, "count": len(added),
+                "tracked_count": len(existing), "skipped_invalid": skipped_invalid}
 
     async def untrack_device(self, mac: str) -> dict[str, Any]:
-        mac = mac.upper().strip()
+        mac = valid_mac(mac)
+        if mac is None:
+            return {"ok": False, "error": "invalid_mac"}
         ent = self._get_backend_entry()
         if ent is None:
             return {"ok": False, "error": "backend_not_found"}

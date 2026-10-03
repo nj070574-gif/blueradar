@@ -1,7 +1,9 @@
 """HTTP REST API for BlueRadar.
 
 Designed for programmatic access by AI bots and external scripts.
-All write endpoints require Home Assistant authentication via Bearer token.
+All write endpoints require Home Assistant authentication via Bearer token
+AND an admin user (they mutate the location backend's config). Read endpoints
+require auth only; the OpenAPI spec is unauthenticated for self-discovery.
 
 Base URL: https://<ha-host>:8123/api/blueradar/
 
@@ -58,6 +60,18 @@ class _BaseView(HomeAssistantView):
 
     def _err(self, msg, code=400):
         return self.json({"ok": False, "error": msg}, status_code=code)
+
+    def _require_admin(self, request):
+        """Return an error response unless the caller is an admin HA user.
+
+        Write endpoints mutate the location backend's config, so they are
+        restricted to admin tokens (read endpoints only require auth).
+        Returns None when the caller is an admin.
+        """
+        user = request.get("hass_user")
+        if user is None or not user.is_admin:
+            return self._err("admin privileges required", 403)
+        return None
 
 
 class DevicesView(_BaseView):
@@ -120,6 +134,9 @@ class TrackView(_BaseView):
     name = "api:blueradar:track"
 
     async def post(self, request: web.Request):
+        admin_err = self._require_admin(request)
+        if admin_err:
+            return admin_err
         coord = self._coord(request)
         if coord is None:
             return self._err("not_loaded", 503)
@@ -139,6 +156,9 @@ class UntrackView(_BaseView):
     name = "api:blueradar:untrack"
 
     async def post(self, request: web.Request):
+        admin_err = self._require_admin(request)
+        if admin_err:
+            return admin_err
         coord = self._coord(request)
         if coord is None:
             return self._err("not_loaded", 503)
@@ -158,6 +178,9 @@ class TrackBulkView(_BaseView):
     name = "api:blueradar:track_bulk"
 
     async def post(self, request: web.Request):
+        admin_err = self._require_admin(request)
+        if admin_err:
+            return admin_err
         coord = self._coord(request)
         if coord is None:
             return self._err("not_loaded", 503)
@@ -168,7 +191,8 @@ class TrackBulkView(_BaseView):
         macs = body.get("macs") or []
         if not isinstance(macs, list) or not macs:
             return self._err("macs (non-empty array) required")
-        result = await coord.track_devices_bulk([m.upper() for m in macs])
+        # Coordinator validates/normalises each MAC (handles non-strings too).
+        result = await coord.track_devices_bulk(macs)
         return self.json(result)
 
 
@@ -177,6 +201,9 @@ class TrackByFilterView(_BaseView):
     name = "api:blueradar:track_by_filter"
 
     async def post(self, request: web.Request):
+        admin_err = self._require_admin(request)
+        if admin_err:
+            return admin_err
         coord = self._coord(request)
         if coord is None:
             return self._err("not_loaded", 503)
@@ -184,11 +211,17 @@ class TrackByFilterView(_BaseView):
             body = await request.json()
         except Exception:
             return self._err("invalid json")
+        min_rssi = body.get("min_rssi")
+        if min_rssi is not None and not isinstance(min_rssi, int):
+            return self._err("min_rssi must be an integer")
+        limit = body.get("limit")
+        if limit is not None and not isinstance(limit, int):
+            return self._err("limit must be an integer")
         devs = coord.data.get("devices", []) if coord.data else []
         filtered = _filter_devices(
             devs,
             named_only=bool(body.get("named_only")),
-            min_rssi=body.get("min_rssi"),
+            min_rssi=min_rssi,
             manuf_name=body.get("manuf_name"),
             addr_type=body.get("addr_type"),
         )
@@ -276,9 +309,10 @@ class OpenAPIView(_BaseView):
                 "version": VERSION,
                 "description": (
                     "REST API for managing BLE devices through BlueRadar.\n\n"
-                    "All write endpoints require a Home Assistant long-lived access token in the "
-                    "`Authorization: Bearer <token>` header. The OpenAPI spec itself is "
-                    "unauthenticated so AI agents can self-discover capabilities."
+                    "All write endpoints require a Home Assistant long-lived access token for an "
+                    "ADMIN user in the `Authorization: Bearer <token>` header (writes mutate the "
+                    "location backend config). Read endpoints require auth only. The OpenAPI spec "
+                    "itself is unauthenticated so AI agents can self-discover capabilities."
                 ),
             },
             "servers": [{"url": "/api/blueradar"}],

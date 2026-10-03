@@ -40,6 +40,9 @@ async def ws_list_devices(hass, connection, msg):
 })
 @websocket_api.async_response
 async def ws_track(hass, connection, msg):
+    if not connection.user.is_admin:
+        connection.send_error(msg["id"], "unauthorized", "Admin privileges required")
+        return
     coord = _get_coord(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "BlueRadar not loaded")
@@ -54,6 +57,9 @@ async def ws_track(hass, connection, msg):
 })
 @websocket_api.async_response
 async def ws_untrack(hass, connection, msg):
+    if not connection.user.is_admin:
+        connection.send_error(msg["id"], "unauthorized", "Admin privileges required")
+        return
     coord = _get_coord(hass)
     if coord is None:
         connection.send_error(msg["id"], "not_loaded", "BlueRadar not loaded")
